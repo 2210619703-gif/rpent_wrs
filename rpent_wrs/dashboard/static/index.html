@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>rpent_wrs · 新建会话</title>
+<link rel="stylesheet" href="/static/dashboard.css" />
+</head>
+<body>
+  <div id="launcher">
+    <div class="launch-card">
+      <h2><span class="dot">●</span> rpent_wrs · 新建会话</h2>
+      <div class="sub">先选定场景，并确认管家配置。任务指令、pause / resume 都在进去之后的监控页输入。</div>
+      <div class="lform">
+        <div class="lfield full">
+          <label for="f-scene">场景</label>
+          <select id="f-scene"></select>
+        </div>
+        <div class="lfield full">
+          <div id="sceneHint" class="scene-hint">加载场景说明…</div>
+        </div>
+        <div class="lfield full">
+          <label for="f-planner">决策大脑（大模型后端）</label>
+          <select id="f-planner">
+            <option value="api" selected>api</option>
+          </select>
+        </div>
+        <div class="lfield">
+          <label for="f-max-turns">最大对话轮数</label>
+          <input type="number" id="f-max-turns" min="1" step="1" value="16" />
+        </div>
+        <div class="lfield">
+          <label for="f-timeout">管家超时（秒）</label>
+          <input type="number" id="f-timeout" min="1" step="1" value="120" />
+        </div>
+        <div class="lfield full">
+          <label for="f-model-preset">模型</label>
+          <select id="f-model-preset">
+            <option value="openai-chat:glm-4.5">openai-chat:glm-4.5</option>
+            <option value="openai-chat:glm-5.2">openai-chat:glm-5.2</option>
+            <option value="openai-chat:deepseek-v4-flash">openai-chat:deepseek-v4-flash</option>
+            <option value="openai-chat:deepseek-v4-pro">openai-chat:deepseek-v4-pro</option>
+            <option value="openai-chat:kimi-k3">openai-chat:kimi-k3</option>
+          </select>
+        </div>
+        <div class="lfield full">
+          <label for="f-model">自定义模型（必填）</label>
+          <input type="text" id="f-model" placeholder="openai-chat:glm-4.5" />
+        </div>
+        <div class="lfield full lcheck">
+          <input type="checkbox" id="f-no-images" checked disabled />
+          <label for="f-no-images">禁用图像输入（纯文本模型必需；本项目没有相机）</label>
+        </div>
+      </div>
+      <div class="launch-actions">
+        <button id="launchBtn" type="button">进入监控</button>
+        <span id="launchStatus"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <h1><span class="dot">●</span> rpent_wrs <span class="meta">实时监控</span></h1>
+      <span id="statusBadge" class="badge b-stale">空闲</span>
+      <span id="resultBadge" class="badge b-fail" style="display:none"></span>
+      <div id="runtimeStatus" class="runtime-status">
+        <span class="runtime-item runtime-pending" id="rt-scene">场景</span>
+        <span class="runtime-item runtime-pending" id="rt-steward">管家</span>
+        <span class="runtime-item runtime-pending" id="rt-goal">目标</span>
+      </div>
+      <span class="meta" id="taskMeta"></span>
+      <span class="grow"></span>
+      <button id="newSessionBtn" type="button" class="ghost">新建会话</button>
+      <span class="meta" id="connMeta">连接中…</span>
+    </header>
+
+    <main>
+      <div class="col left">
+        <div class="panel-title">
+          <span>智能体推理与工具调用</span>
+          <span class="count" id="evCount"></span>
+          <span class="grow"></span>
+          <label class="meta" style="text-transform:none;letter-spacing:0">
+            <input type="checkbox" id="showtools" /> 展开工具调用
+          </label>
+          <label class="meta" style="text-transform:none;letter-spacing:0">
+            <input type="checkbox" id="autoscroll" checked /> 自动滚动
+          </label>
+        </div>
+        <div id="transcript"><div class="empty">在下方输入任务并启动后，这里会显示管家过程。</div></div>
+        <section class="composer" aria-label="任务指令">
+          <div id="interactionStatus" class="composer-status">输入任务后点启动。</div>
+          <div class="composer-examples" id="monitorExamples"></div>
+          <textarea id="chatInput" rows="3" placeholder="在这里自己输入任务，例如：把方块放到 place_B"></textarea>
+          <div class="task-row">
+            <button id="runBtn" type="button">启动</button>
+            <label class="lcheck compact">
+              <input type="checkbox" id="f-scripted" />
+              不调管家，直接抓放
+            </label>
+            <span id="inboxStatus" class="composer-status"></span>
+          </div>
+          <div class="composer-row">
+            <span class="composer-hint">Enter 发送 · Shift+Enter 换行</span>
+          </div>
+        </section>
+      </div>
+
+      <div class="gutter gutter-v" title="拖动调整栏宽"></div>
+
+      <div class="col right">
+        <div class="framewrap">
+          <div class="frame-tabs">
+            <button type="button" class="active">WRS 画面</button>
+            <a id="openViewer" href="http://127.0.0.1:8000/" target="_blank" rel="noreferrer">单独打开</a>
+          </div>
+          <iframe id="sceneFrame" title="WRS viewer"></iframe>
+          <div class="frame-cap" id="frameCap">F 单步 · G 播放 · R 重来 · P 暂停管家</div>
+        </div>
+        <div class="gutter gutter-h" title="拖动调整画面高度"></div>
+        <div class="col" style="min-height:0">
+          <div class="panel-title">动作时间线 <span class="count" id="stepCount"></span></div>
+          <div id="timeline"><div class="empty">还没有动作。</div></div>
+          <div id="clipTimeline" class="hidden"></div>
+          <div id="replayBar" class="replay-bar hidden">
+            <button id="replayBtn" type="button">查看动作回放</button>
+            <span class="composer-hint">按 approach / pick / depart / move / place 分段，点一行就在上方画面回放</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+<script type="module" src="/static/dashboard.js"></script>
+</body>
+</html>
